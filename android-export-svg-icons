@@ -1,0 +1,205 @@
+#!/bin/bash
+
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+#
+#   Written by Dark X Dragon (Will)
+#
+
+function PrintHelp {
+	echo "Usage: android-export-svg-icons [OPTION]... [FILE]...
+
+  -d, --directory=DIR   Recursively add svg files from a directory
+  -s, --sizes=SIZES     Set sizes to export to, separated by commas.
+                        Assume W=H, unless specifically entered as WWxHH.
+  -t, --type=TYPE       Export to predeetermined sizes, options are listed below.
+                        logo:                   512,72,48,36
+                        notification_icon:      48,36,24
+
+Example: android-export-svg-icons --directory=some/folder --sizes=48,36,24x12
+    or:  android-export-svg-icons --type=logo file.svg file2.svg
+"
+	exit
+}
+
+
+# Add size to an array of sizes (in pixels) to export
+function AddSize {
+	# Count array index and use that vlue as index for next entry
+	SIZECOUNT=${#SIZES[@]}
+	SIZES[SIZECOUNT]=$1
+}
+
+# Split size input string and send to AddSize
+function AddSizeString {
+	if [ $# -eq 1 ]; then
+		for i in $@
+		do
+			
+			echo "rawr"
+			
+			# AddSize $SIZE
+		done
+	else
+		echo "Invalid sizes Argument ( eg. s=36,48,72 )"
+	fi
+}
+
+function AddSizesFromType {
+	if [ $# -eq 1 ]; then
+		case $1 in
+			logo)
+				AddSize 36
+				AddSize 48
+				AddSize 72
+				AddSize 512
+				;;
+			notification_icon)
+				AddSize 24
+				AddSize 36
+				AddSize 48
+				;;
+			test)
+				AddSize 48
+				;;
+			*)
+				echo "Invalid Export Type"
+				exit
+				;;
+		esac
+	else
+		echo "Invalid Export Type Argument"
+		exit
+	fi
+}
+
+# Add file to array
+function AddFile {
+	# Count array index and use that vlue as index for next entry
+	FILECOUNT=${#FILES[@]}
+	FILES[$FILECOUNT]=$1
+}
+
+# Find svg files in a folder and add them to array
+function AddFolder {
+	
+	if [ $# -eq 1 ]; then
+		# Get folder and remove any trailing slash
+		FOLDER=`echo "$1" |sed 's#/*$##'`
+		
+		# Check folder for list of files and choose only svg
+		#for FILE in `ls -Q $FOLDER/*.svg`
+		for FILE in `find $FOLDER/*.svg`
+		do
+			AddFile $FILE
+		done
+	else
+		echo "Invalid Export Type Argument"
+		exit
+	fi
+}
+
+# Export individual svg to png with inkscape
+function ExportFile {
+	# $1 = file
+	# $2 = size
+	
+	FILE=$1
+	SIZE=$2
+	# If these are empty or size is invalid, exit function
+		
+	# If less than two arguments, error
+	if [ $# -ge 2 ]; then
+		
+		
+		
+		echo 
+		echo '################### EXPORTING '$FILE $SIZE'px...'
+		
+		if [ -e $FILE ];
+		then
+			
+			# Remove Extension
+			FILENOEXTENSION=`echo $FILE |sed 's/\.svg$//g'`
+			
+			EXPORTFILE=$FILENOEXTENSION'.'$SIZE'px.png'
+			
+			echo $FILE
+			echo $FILENOEXTENSION
+			echo $EXPORTFILE
+			#inkscape --without-gui --file=$1 --export-png=$EXPORTFILE --export-area-page -w=512 -h=512
+		
+		else 
+			echo "File does not exist."
+		fi
+	else
+		echo "Invalid Export File Arguments"
+		exit
+	fi
+	
+}
+
+# Export all files
+function ExportAll {
+	for FILE in ${FILES[@]}
+	do
+		#ExportFile "$FILE" "SIZE"
+		
+		for SIZE in ${SIZES[@]}
+		do
+			ExportFile $FILE $SIZE
+		done
+	done
+}
+
+## Execute from here
+
+if [ $# -ge 1 ]; then
+	for i in $@
+	do
+		case $i in
+			-h|--help)
+				PrintHelp
+				;;
+				
+			-t=*|--type=*)
+				# Export type; logo, notification
+				AddSizesFromType `echo $i | sed 's/[-a-zA-Z0-9]*=//'`
+				;;
+				
+			-s=*|--sizes=*)
+				# Export size/s. -s=512 -s=72,48,36
+				AddSizeString `echo $i | sed 's/[-a-zA-Z0-9]*=//'`
+				;;
+				
+			-d=*|--directory=*)
+				# recursively export files from this folder
+				
+				AddFolder "`echo $i | sed 's/[-a-zA-Z0-9]*=//'`"
+				;;
+				
+			*)
+				# Filenames
+				AddFile "$i"
+				;;
+	  	esac
+	done
+	
+	ExportAll
+
+else
+	PrintHelp
+fi
+
+
