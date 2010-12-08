@@ -17,6 +17,8 @@
 #   Written by Dark X Dragon (Will)
 #
 
+# TODO: Add support for folders and filenames with whitespace
+
 function PrintHelp {
 	echo "Usage: android-export-svg-icons [OPTION]... [FILE]...
 
@@ -34,7 +36,19 @@ Example: android-export-svg-icons --directory=some/folder --sizes=48,36,24x12
 }
 
 
+###############################################
+############ Variables
+###############################################
+DEBUG=false
+
+
+
+###############################################
+############ Functions
+###############################################
+
 # Add size to an array of sizes (in pixels) to export
+# $1 = Size <48|48x48>
 function AddSize {
 	# Count array index and use that vlue as index for next entry
 	SIZECOUNT=${#SIZES[@]}
@@ -42,12 +56,13 @@ function AddSize {
 }
 
 # Split size input string and send to AddSize
+# $1 = Size string (Sizes seperated by comma) <1,2,3x4>
 function AddSizeString {
 	if [ $# -eq 1 ]; then
 		for i in $@
 		do
 			
-			echo "rawr"
+			echo "add size string here"
 			
 			# AddSize $SIZE
 		done
@@ -56,6 +71,8 @@ function AddSizeString {
 	fi
 }
 
+# Add sizes to array from predetermined lists
+# $1 = Type (String to match one of case list below)
 function AddSizesFromType {
 	if [ $# -eq 1 ]; then
 		case $1 in
@@ -70,9 +87,6 @@ function AddSizesFromType {
 				AddSize 36
 				AddSize 48
 				;;
-			test)
-				AddSize 48
-				;;
 			*)
 				echo "Invalid Export Type"
 				exit
@@ -85,6 +99,7 @@ function AddSizesFromType {
 }
 
 # Add file to array
+# $1 = File
 function AddFile {
 	# Count array index and use that vlue as index for next entry
 	FILECOUNT=${#FILES[@]}
@@ -92,14 +107,16 @@ function AddFile {
 }
 
 # Find svg files in a folder and add them to array
+# $1 = Folder
 function AddFolder {
 	
 	if [ $# -eq 1 ]; then
 		# Get folder and remove any trailing slash
-		FOLDER=`echo "$1" |sed 's#/*$##'`
+		FOLDER=`echo $1 |sed 's#/*$##'`
 		
 		# Check folder for list of files and choose only svg
-		#for FILE in `ls -Q $FOLDER/*.svg`
+		# TODO: Make compatible for files with whitespace
+		# for FILE in `ls -Q $FOLDER/*.svg`
 		for FILE in `find $FOLDER/*.svg`
 		do
 			AddFile $FILE
@@ -111,35 +128,35 @@ function AddFolder {
 }
 
 # Export individual svg to png with inkscape
+# $1 = File
+# $2 = Size <48|48x48>
 function ExportFile {
-	# $1 = file
-	# $2 = size
-	
 	FILE=$1
 	SIZE=$2
-	# If these are empty or size is invalid, exit function
 		
-	# If less than two arguments, error
-	if [ $# -ge 2 ]; then
-		
-		
-		
+	# If there is not two arguments, error
+	if [ $# -eq 2 ]; then
 		echo 
 		echo '################### EXPORTING '$FILE $SIZE'px...'
 		
 		if [ -e $FILE ];
 		then
-			
 			# Remove Extension
 			FILENOEXTENSION=`echo $FILE |sed 's/\.svg$//g'`
 			
+			# Create output filename with size
 			EXPORTFILE=$FILENOEXTENSION'.'$SIZE'px.png'
 			
-			echo $FILE
-			echo $FILENOEXTENSION
-			echo $EXPORTFILE
-			#inkscape --without-gui --file=$1 --export-png=$EXPORTFILE --export-area-page -w=512 -h=512
-		
+			# If debug mode is on
+			if $DEBUG; then
+				echo '$FILE =            '$FILE
+				echo '$FILENOEXTENSION = '$FILENOEXTENSION
+				echo '$EXPORTFILE =      '$EXPORTFILE
+			else
+				# TODO: Export files here
+				echo "TODO: export $EXPORTFILE"
+				#inkscape --without-gui --file=$1 --export-png=$EXPORTFILE --export-area-page -w=512 -h=512
+			fi
 		else 
 			echo "File does not exist."
 		fi
@@ -163,8 +180,15 @@ function ExportAll {
 	done
 }
 
-## Execute from here
 
+
+
+
+###############################################
+############ Script executes from here
+###############################################
+
+# Read command line arguments
 if [ $# -ge 1 ]; then
 	for i in $@
 	do
@@ -186,19 +210,30 @@ if [ $# -ge 1 ]; then
 			-d=*|--directory=*)
 				# recursively export files from this folder
 				
-				AddFolder "`echo $i | sed 's/[-a-zA-Z0-9]*=//'`"
+				AddFolder `echo $i | sed 's/[-a-zA-Z0-9]*=//'`
+				;;
+				
+			--debug)
+				# Debug output and do not export files
+				
+				DEBUG=true
+				AddSize 48
+				
+				
 				;;
 				
 			*)
 				# Filenames
-				AddFile "$i"
+				AddFile $i
 				;;
 	  	esac
 	done
 	
+	# Start exporting files
 	ExportAll
 
 else
+	# If there are no arguments, print help
 	PrintHelp
 fi
 
