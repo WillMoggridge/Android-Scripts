@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#
+#	Copyright (C) 2010 Dark X Dragon (Will Moggridge)
+#
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation, either version 3 of the License, or
@@ -13,11 +16,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#
-#   Written by Dark X Dragon (Will)
-#
-
-# TODO: Add support for folders and filenames with whitespace
+# TODO: Add support for command line argument filenames with whitespace
 
 function PrintHelp {
 	echo "Usage: android-export-svg-icons [OPTION]... [FILE]...
@@ -28,10 +27,15 @@ function PrintHelp {
   -t, --type=TYPE       Export to predeetermined sizes, options are listed below.
                         logo:                   512,72,48,36
                         notification_icon:      48,36,24
+      --debug           Debug mode. Show debug output and do not export files.
 
 Example: android-export-svg-icons --directory=some/folder --sizes=48,36,24x12
     or:  android-export-svg-icons --type=logo file.svg file2.svg
-"
+
+
+This script exports a selection of svg files in a selection of sizes using Inkscape.
+Currently there is a bug which prevents files with spaces being added through the
+command line arguments."
 	exit
 }
 
@@ -59,13 +63,11 @@ function AddSize {
 # $1 = Size string (Sizes seperated by comma) <1,2,3x4>
 function AddSizeString {
 	if [ $# -eq 1 ]; then
-		for i in $@
-		do
+		# TODO: split string
+		
+		echo "add size string here"
 			
-			echo "add size string here"
-			
-			# AddSize $SIZE
-		done
+		# AddSize $SIZE
 	else
 		echo "Invalid sizes Argument ( eg. s=36,48,72 )"
 	fi
@@ -114,13 +116,17 @@ function AddFolder {
 		# Get folder and remove any trailing slash
 		FOLDER=`echo $1 |sed 's#/*$##'`
 		
-		# Check folder for list of files and choose only svg
-		# TODO: Make compatible for files with whitespace
-		# for FILE in `ls -Q $FOLDER/*.svg`
-		for FILE in `find $FOLDER/*.svg`
+		# Set Input Field Seperator to newline
+		unset $IFS
+		IFS=$'\n'
+
+		for FILE in `find "$FOLDER" -name "*.svg"`
 		do
 			AddFile $FILE
 		done
+		
+		# Reset IFS
+		unset $IFS		
 	else
 		echo "Invalid Export Type Argument"
 		exit
@@ -142,8 +148,7 @@ function ExportFile {
 		if [ -e $FILE ];
 		then
 			# Remove Extension
-			FILENOEXTENSION=`echo $FILE |sed 's/\.svg$//g'`
-			
+			FILENOEXTENSION=`echo $FILE | sed 's/\.svg$//g'`
 			# Create output filename with size
 			EXPORTFILE=$FILENOEXTENSION'.'$SIZE'px.png'
 			
@@ -155,7 +160,15 @@ function ExportFile {
 			else
 				# TODO: Export files here
 				echo "TODO: export $EXPORTFILE"
-				#inkscape --without-gui --file=$1 --export-png=$EXPORTFILE --export-area-page -w=512 -h=512
+				
+				# TODO: Check size is valid and check if it is WIDTHxHEIGHT
+				
+				SIZEWIDTH=0
+				SIZEHEIGHT=0
+				
+				# if size contains x, do this.
+				
+				#inkscape --without-gui --file=$FILE --export-png=$EXPORTFILE --export-area-page -w=$SIZE -h=$SIZE
 			fi
 		else 
 			echo "File does not exist."
@@ -170,9 +183,7 @@ function ExportFile {
 # Export all files
 function ExportAll {
 	for FILE in ${FILES[@]}
-	do
-		#ExportFile "$FILE" "SIZE"
-		
+	do		
 		for SIZE in ${SIZES[@]}
 		do
 			ExportFile $FILE $SIZE
@@ -209,20 +220,18 @@ if [ $# -ge 1 ]; then
 				
 			-d=*|--directory=*)
 				# recursively export files from this folder
-				
 				AddFolder `echo $i | sed 's/[-a-zA-Z0-9]*=//'`
 				;;
 				
 			--debug)
 				# Debug output and do not export files
-				
 				DEBUG=true
-				AddSize 48
-				
-				
+				AddSize 50
+				AddSize "50x10"
 				;;
 				
 			*)
+				# TODO: Support filenames with whitespace?
 				# Filenames
 				AddFile $i
 				;;
