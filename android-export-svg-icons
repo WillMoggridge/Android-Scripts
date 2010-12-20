@@ -51,53 +51,57 @@ DEBUG=false
 ############ Functions
 ###############################################
 
-# Add size to an array of sizes (in pixels) to export
+# Validate and add size to an array of sizes (in pixels) to export
 # $1 = Size <48|48x48>
 function AddSize {
-	# Count array index and use that vlue as index for next entry
-	SIZECOUNT=${#SIZES[@]}
-	SIZES[SIZECOUNT]=$1
+	# Validate size input
+	if [ `echo $1 | grep -E '^([0-9]+|[0-9]+x[0-9]+)$'` ]; then
+		# Count array index and use that vlue as index for next entry
+		SIZECOUNT=${#SIZES[@]}
+		SIZES[SIZECOUNT]=$1
+	else
+		echo "Invalid size: $1"
+	fi
 }
 
 # Split size input string and send to AddSize
 # $1 = Size string (Sizes seperated by comma) <1,2,3x4>
 function AddSizeString {
-	if [ $# -eq 1 ]; then
-		# TODO: split string
-		
-		echo "add size string here"
-			
-		# AddSize $SIZE
-	else
-		echo "Invalid sizes Argument ( eg. s=36,48,72 )"
-	fi
+	# Set Input Field Seperator to comma
+	unset $IFS
+	IFS=,
+
+	for SIZE in $1
+	do			
+		AddSize $SIZE
+	done
+	
+	# Reset IFS
+	unset $IFS
 }
 
 # Add sizes to array from predetermined lists
 # $1 = Type (String to match one of case list below)
 function AddSizesFromType {
-	if [ $# -eq 1 ]; then
-		case $1 in
-			logo)
-				AddSize 36
-				AddSize 48
-				AddSize 72
-				AddSize 512
-				;;
-			notification_icon)
-				AddSize 24
-				AddSize 36
-				AddSize 48
-				;;
-			*)
-				echo "Invalid Export Type"
-				exit
-				;;
-		esac
-	else
-		echo "Invalid Export Type Argument"
-		exit
-	fi
+	case $1 in
+		logo)
+			AddSize 36
+			AddSize 48
+			AddSize 72
+			AddSize 512
+			;;
+			
+		notification_icon)
+			AddSize 24
+			AddSize 36
+			AddSize 48
+			;;
+			
+		*)
+			echo "Invalid Export Type"
+			exit
+			;;
+	esac
 }
 
 # Add file to array
@@ -111,26 +115,20 @@ function AddFile {
 # Find svg files in a folder and add them to array
 # $1 = Folder
 function AddFolder {
+	# Get folder and remove any trailing slash
+	FOLDER=`echo $1 |sed 's#/*$##'`
 	
-	if [ $# -eq 1 ]; then
-		# Get folder and remove any trailing slash
-		FOLDER=`echo $1 |sed 's#/*$##'`
-		
-		# Set Input Field Seperator to newline
-		unset $IFS
-		IFS=$'\n'
+	# Set Input Field Seperator to newline
+	unset $IFS
+	IFS=$'\n'
 
-		for FILE in `find "$FOLDER" -name "*.svg"`
-		do
-			AddFile $FILE
-		done
-		
-		# Reset IFS
-		unset $IFS		
-	else
-		echo "Invalid Export Type Argument"
-		exit
-	fi
+	for FILE in `find "$FOLDER" -name "*.svg"`
+	do
+		AddFile $FILE
+	done
+	
+	# Reset IFS
+	unset $IFS
 }
 
 # Export individual svg to png with inkscape
@@ -139,43 +137,38 @@ function AddFolder {
 function ExportFile {
 	FILE=$1
 	SIZE=$2
+	
+	echo 
+	echo '################### EXPORTING '$FILE $SIZE'px...'
+	
+	if [ -e $FILE ]; then
+		# Remove Extension
+		FILENOEXTENSION=`echo $FILE | sed 's/\.svg$//g'`
+		# Create output filename with size
+		EXPORTFILE=$FILENOEXTENSION'.'$SIZE'px.png'
 		
-	# If there is not two arguments, error
-	if [ $# -eq 2 ]; then
-		echo 
-		echo '################### EXPORTING '$FILE $SIZE'px...'
-		
-		if [ -e $FILE ];
-		then
-			# Remove Extension
-			FILENOEXTENSION=`echo $FILE | sed 's/\.svg$//g'`
-			# Create output filename with size
-			EXPORTFILE=$FILENOEXTENSION'.'$SIZE'px.png'
-			
-			# If debug mode is on
-			if $DEBUG; then
-				echo '$FILE =            '$FILE
-				echo '$FILENOEXTENSION = '$FILENOEXTENSION
-				echo '$EXPORTFILE =      '$EXPORTFILE
-			else
-				# TODO: Export files here
-				echo "TODO: export $EXPORTFILE"
-				
-				# TODO: Check size is valid and check if it is WIDTHxHEIGHT
-				
-				SIZEWIDTH=0
-				SIZEHEIGHT=0
-				
-				# if size contains x, do this.
-				
-				#inkscape --without-gui --file=$FILE --export-png=$EXPORTFILE --export-area-page -w=$SIZE -h=$SIZE
-			fi
-		else 
-			echo "File does not exist."
+		# If format is WIDTHxHEIGHT do this, else assume 1:1 ratio
+		if [ `echo $SIZE | grep -E '^[0-9]+x[0-9]+$'` ]; then
+			SIZEWIDTH=`echo $SIZE | sed 's/x[0-9]*//'`
+			SIZEHEIGHT=`echo $SIZE | sed 's/[0-9]*x//'`
+		else
+			SIZEWIDTH=$SIZE
+			SIZEHEIGHT=$SIZE
 		fi
-	else
-		echo "Invalid Export File Arguments"
-		exit
+		
+		# If debug mode is on
+		if $DEBUG; then
+			echo '$FILE =            '$FILE
+			echo '$FILENOEXTENSION = '$FILENOEXTENSION
+			echo '$EXPORTFILE =      '$EXPORTFILE
+			echo 'inkscape --without-gui --file'$FILE' --export-png='$EXPORTFILE' --export-area-page -w='$SIZEWIDTH' -h='$SIZEHEIGHT
+		else
+			echo "TODO: export $EXPORTFILE"
+			#inkscape --without-gui --file=$FILE --export-png=$EXPORTFILE\
+			# --export-area-page -w=$SIZEWIDTH -h=$SIZEHEIGHT
+		fi
+	else 
+		echo "File does not exist."
 	fi
 	
 }
@@ -195,55 +188,56 @@ function ExportAll {
 
 
 
+
+
+
+
 ###############################################
 ############ Script executes from here
 ###############################################
 
-# Read command line arguments
-if [ $# -ge 1 ]; then
-	for i in $@
-	do
-		case $i in
-			-h|--help)
-				PrintHelp
-				;;
-				
-			-t=*|--type=*)
-				# Export type; logo, notification
-				AddSizesFromType `echo $i | sed 's/[-a-zA-Z0-9]*=//'`
-				;;
-				
-			-s=*|--sizes=*)
-				# Export size/s. -s=512 -s=72,48,36
-				AddSizeString `echo $i | sed 's/[-a-zA-Z0-9]*=//'`
-				;;
-				
-			-d=*|--directory=*)
-				# recursively export files from this folder
-				AddFolder `echo $i | sed 's/[-a-zA-Z0-9]*=//'`
-				;;
-				
-			--debug)
-				# Debug output and do not export files
-				DEBUG=true
-				AddSize 50
-				AddSize "50x10"
-				;;
-				
-			*)
-				# TODO: Support filenames with whitespace?
-				# Filenames
-				AddFile $i
-				;;
-	  	esac
-	done
-	
-	# Start exporting files
-	ExportAll
+# If there are no arguments, print help
+[ "$#" -ge 1 ] || PrintHelp
 
-else
-	# If there are no arguments, print help
-	PrintHelp
-fi
+# Read command line arguments
+for i in $@
+do
+	case $i in
+		-h|--help)
+			PrintHelp
+			;;
+			
+		-t=*|--type=*)
+			# Export type; logo, notification
+			AddSizesFromType `echo $i | sed 's/[-a-zA-Z0-9]*=//'`
+			;;
+			
+		-s=*|--sizes=*)
+			# Export size/s. -s=512 -s=72,48,36
+			AddSizeString `echo $i | sed 's/[-a-zA-Z0-9]*=//'`
+			;;
+			
+		-d=*|--directory=*)
+			# recursively export files from this folder
+			AddFolder `echo $i | sed 's/[-a-zA-Z0-9]*=//'`
+			;;
+			
+		--debug)
+			# Debug output and do not export files
+			DEBUG=true
+			AddSize 50
+			AddSize 50x10
+			;;
+			
+		*)
+			# TODO: Support filenames with whitespace?
+			# Filenames
+			AddFile $i
+			;;
+	esac
+done
+
+# Start exporting files
+ExportAll
 
 
